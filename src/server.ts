@@ -21,37 +21,17 @@ db.on('error', (error: Error) => console.log("Check your mongodb please. There i
 db.on('open', () => console.log("Mongodb is connected."))
 app.use(express.json())
 
-// if (process.env.PRODUCTION==="true") {
-    app.use(cors({
-        origin: '*', // process.env.DOMAIN,
-        methods: 'GET, HEAD, PUT, PATCH, POST, DELETE',
-        credentials: true,
-        allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'Access-Control-Allow-Origin', 'Access-Control-Allow-Methods', 'Access-Control-Allow-Headers'],
-    }));
+app.use(express.urlencoded({ extended: true }));
 
-    app.use((req, res, next) => {
-        res.header('Access-Control-Allow-Origin', '*'); //process.env.DOMAIN);
-        res.header('Access-Control-Allow-Methods', 'GET, HEAD, PUT, PATCH, POST, DELETE'); 
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Origin, X-Requested-With, Content-Type, Accept, Authorization, Access-Control-Allow-Origin, Access-Control-Allow-Methods, Access-Control-Allow-Headers'); 
-        next();
-    });
-// }
+app.use((req, res, next) => {
+    console.log(`${new Date().toString()}: ${req.method}=> ${req.originalUrl}`);
+    next();
+});
 
-// if (process.env.PRODUCTION==="true") {
 app.set('trust proxy', true);
-// }
 app.use(bodyParser.json());
 
-var server;
-if (process.env.PRODUCTION==="true") {
-    const privateKey = fs.readFileSync('/etc/letsencrypt/live/sankalp-api.sosc.org.in/privkey.pem', 'utf8');
-    const certificate = fs.readFileSync('/etc/letsencrypt/live/sankalp-api.sosc.org.in/fullchain.pem', 'utf8');
-        
-    const credentials = { key: privateKey, cert: certificate };
-    server = https.createServer(credentials, app);
-} else {
-    server = http.createServer(app);
-}
+var server = http.createServer(app);
 
 app.get("/", async(req, res) => {
     res.status(200).json({success: true})
