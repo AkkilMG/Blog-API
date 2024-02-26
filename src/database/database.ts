@@ -1,9 +1,11 @@
 
-import mongo from "mongoose";
+import mongo, { Schema, Document } from "mongoose";
 import { createToken } from "../workers/auth";
 import { passwordChecker } from "../workers/crypt";
 import { AuthorsModel, BlogsModel } from "../workers/model";
 
+
+// User
 const authorsDB = new mongo.Schema<AuthorsModel>({
     name: {
         type: String,
@@ -31,19 +33,23 @@ const authorsDB = new mongo.Schema<AuthorsModel>({
         type: Boolean,
         required: true
     },
+    sub: {
+        type: Boolean,
+        required: true
+    },
     socialInfo: [{
         type: Object,
         _id: false
     }]
 }, {
-    collection: "authors"
+    collection: "User"
 })
 
-export const authors = mongo.model('authors', authorsDB);
+export const authors = mongo.model('User', authorsDB);
 
 
 // register
-export const registerAuthor = async (data: AuthorsModel) => {
+export const register = async (data: AuthorsModel) => {
     try {
         var checker = await passwordChecker(data.password)
         if (await authors.findOne({ 'email': data.email })) {
@@ -69,8 +75,8 @@ export const registerAuthor = async (data: AuthorsModel) => {
     }
 }
 
-// authentication
-export const loginAuthor = async (email: string, password: string) => {
+// login
+export const login = async (email: string, password: string) => {
     try {
         if (await authors.findOne({ 'email': email, 'password': password })) {
             return { success: true, token: await createToken(await authors.findOne({ 'email': email, 'password': password })) }
@@ -84,25 +90,63 @@ export const loginAuthor = async (email: string, password: string) => {
         return { success: true }
     } catch (e) {
         console.log(e);
-        return { success: false }
+        return { success: false, message: "Something went wrong" }
+    }
+}
+
+// Get all users
+export const getAllUsers = async () => {
+    try {
+        var data = await authors.findOne({ }).select('-_id')
+        if (data) {
+            return { success: true, 'data': data }
+        }
+        return { success: false, message: "Unabled to fetch details." }
+    } catch (e) {
+        console.log(e);
+        return { success: false, message: "Something went wrong." }
+    }
+}
+
+// Delete user
+export const deleteUser = async (id: string) => {
+    try {
+        await authors.deleteOne({ '_id': id })
+        return { success: true }
+    } catch (e) {
+        console.log(e);
+        return { success: false, message: "User not found." }
     }
 }
 
 // get details
-export const details = async (id: string) => {
+export const getUserByID = async (id: string) => {
     try {
         var data = await authors.findOne({ '_id': id }).select('-_id')
         if (data) {
             return { success: true, 'data': data }
         }
-        return { success: false }
+        return { success: false, message: "User does not exist" }
     } catch (e) {
         console.log(e);
-        return { success: false }
+        return { success: false, message: "Something went wrong." }
     }
 }
 
+export const isSubscriber = async (id: string) => {
+    try {
+        var data = await authors.findOne({ '_id': id, 'sub': true }).select('-_id')
+        if (data) {
+            return { success: true }
+        }
+        return { success: false, message: "User is not a subscriber." }
+    } catch (e) {
+        console.log(e);
+        return { success: false, message: "Something went wrong." }
+    }
+}
 
+// Blogs
 const blogsDB = new mongo.Schema<BlogsModel>({
     title: {
         type: String,
@@ -110,9 +154,10 @@ const blogsDB = new mongo.Schema<BlogsModel>({
     summary: {
         type: String,
     },
-    author_id: {
-        type: String,
-    },
+    author_id: [{
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }],
     category_id: [{
         type: String,
     }],
@@ -129,10 +174,10 @@ const blogsDB = new mongo.Schema<BlogsModel>({
         type: String,
     },
 }, {
-    collection: "blogs"
+    collection: "Blog"
 })
 
-export const blogs = mongo.model('blogs', blogsDB);
+export const blogs = mongo.model('Blog', blogsDB);
 
 
 // Fetch all blogs
@@ -165,9 +210,10 @@ export const createNewBlogs = async (data: BlogsModel) => {
 }
 
 // Fetch certain author blogs
-export const FetchAuthorBlogs = async (author_id: string) => {
+export const FetchAuthorBlogs = async (id: string) => {
     try {
-        var data = await blogs.find({ 'author_id': author_id }).select('-_id')
+        // await authors.createIndexes({ authors: 1 });
+        var data = await blogs.find({ 'author_id': id }).select('-_id')
         if (data) {
             return { success: true, 'data': data }
         }
@@ -191,3 +237,21 @@ export const infoBlogs = async (id: string) => {
         return { success: false }
     }
 }
+
+// Search Blogs
+export const searchBlogs = async (query: string) => {
+    try {
+      if (!query) {
+        return { success: true, message: 'Search query is required' }
+      }
+      const searchResults = await blogs.find({ $text: { $search: query } }).select('-_id');
+      if (searchResults) {
+          return { success: true, data: searchResults }
+      }
+      return { success: false, message: "Something went wrong" }
+    } catch (error) {
+      console.error('Error searching blogs:', error);
+      return { success: false, message: "Something went wrong" }
+    }
+  }
+  

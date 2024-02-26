@@ -2,6 +2,7 @@
 import jwt from "jsonwebtoken";
 import { Request, Response } from 'express';
 import { decrypt, encrypt } from "../workers/crypt";
+import { isSubscriber } from "../database/database";
 
 export const verifyToken = async (req: Request, res: Response, next: () => void) => {
     const token = req.header('Authorization')?.split(' ')[1];
@@ -11,6 +12,10 @@ export const verifyToken = async (req: Request, res: Response, next: () => void)
     try {
         const decoded = jwt.verify(token, process.env.KEY) as { id: string };
         req.body.id = await decrypt(decoded.id);
+        var data = await isSubscriber(req.body.id);
+        if (!data.success) {
+            return res.status(401).json({ success: false, message: 'Is not a subscriber' });
+        }
         next();
     } catch (error) {
         return res.status(401).json({ success: false, message: 'Authentication failed' });

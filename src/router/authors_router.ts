@@ -1,6 +1,6 @@
 
 
-import { loginAuthor, registerAuthor } from "../database/database";
+import { login, register } from "../database/database";
 import express from "express";
 
 
@@ -12,7 +12,7 @@ router.post("/signup", async(req, res) => {
         if (req.header('Authorization')) {
             return res.status(500).json({ success: false, message: "User has an active session." })
         }
-        var register = await registerAuthor(req.body);
+        var register: any = await register(req.body);
         return res.status(register.success ? 200 : 500).json(register)
     } catch (e) {
         return res.status(500).json({ success: false, message: e.message })
@@ -25,7 +25,7 @@ router.post("/signin", async(req, res) => {
         if (req.header('Authorization')) {
             return res.status(500).json({ success: false, message: "User has an active session." })
         }
-        var login = await loginAuthor(req.body.email, req.body.password);
+        var login: any = await login(req.body.email, req.body.password);
         return res.status(login.success ? 200 : 500).json(login)
     } catch (e) {
         return res.status(500).json({ success: false, message: e.message })
